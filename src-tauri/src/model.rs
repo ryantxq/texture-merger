@@ -41,11 +41,13 @@ impl Compression {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportOptions {
     pub bit_depth: u8, // 8 或 16
     pub compression: Compression,
+    /// 目标长边像素尺寸列表（含原尺寸；0 会被清洗掉）。
+    pub sizes: Vec<u32>,
 }
 
 /// 导入结果：ok 带图层元信息（含 base64 缩略图）；error 标记失败项。
@@ -76,11 +78,23 @@ pub struct PreviewImage {
     pub data_url: String, // data:image/png;base64,...
 }
 
+/// 单个分辨率导出结果（sizes 中每个目标尺寸对应一项）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ExportStats {
+pub struct ExportFile {
+    pub size: u32, // 请求的目标长边尺寸
     pub width: u32,
     pub height: u32,
     pub bytes_written: u64,
     pub duration_ms: u128,
+}
+
+/// 图层非透明像素边界（含边界，即 w/h 为像素数）。
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct LayerBbox {
+    pub x: u32,
+    pub y: u32,
+    pub w: u32,
+    pub h: u32,
 }

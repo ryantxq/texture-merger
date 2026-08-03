@@ -1,24 +1,41 @@
 use std::path::{Path, PathBuf};
-use tauri::State;
+use tauri::{Emitter, State};
 use crate::decode;
 use crate::import;
-use crate::model::{ExportOptions, ImportItem, LayerState, PreviewImage, Snapshot};
+use crate::model::{ExportFile, ExportOptions, ImportItem, LayerBbox, LayerState, PreviewImage, Snapshot};
 
 #[tauri::command]
-pub fn import_files(paths: Vec<String>, next_id: u32) -> Result<Vec<ImportItem>, String> {
+pub fn import_files(app: tauri::AppHandle, paths: Vec<String>, next_id: u32) -> Result<Vec<ImportItem>, String> {
     let paths: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
-    Ok(import::import_paths(&paths, next_id))
+    let total = paths.len();
+    let on_progress = |done: usize, _total: usize| {
+        let _ = app.emit("import-progress", serde_json::json!({
+            "done": done, "total": total
+        }));
+    };
+    Ok(import::import_paths_with_progress(&paths, next_id, &on_progress))
 }
 
 #[tauri::command]
-pub fn import_folder(path: String, next_id: u32) -> Result<Vec<ImportItem>, String> {
+pub fn import_folder(app: tauri::AppHandle, path: String, next_id: u32) -> Result<Vec<ImportItem>, String> {
     let files = import::scan_png_files(Path::new(&path))?;
-    Ok(import::import_paths(&files, next_id))
+    let total = files.len();
+    let on_progress = |done: usize, _total: usize| {
+        let _ = app.emit("import-progress", serde_json::json!({
+            "done": done, "total": total
+        }));
+    };
+    Ok(import::import_paths_with_progress(&files, next_id, &on_progress))
 }
 
 #[tauri::command]
-pub fn build_preview(snapshot: Snapshot, max_dim: u32) -> Result<PreviewImage, String> {
-    crate::preview::build_preview(snapshot, max_dim)
+pub fn build_preview(snapshot: Snapshot, cache: State<'_, crate::preview::PreviewCache>) -> Result<PreviewImage, String> {
+    crate::preview::build_preview(snapshot, cache.inner())
+}
+
+#[tauri::command]
+pub fn get_layer_bbox(layer: LayerState, cache: State<'_, crate::preview::BboxCache>) -> Result<Option<LayerBbox>, String> {
+    crate::preview::compute_bbox(&layer, cache.inner())
 }
 
 #[tauri::command]
@@ -26,10 +43,11 @@ pub fn export_image(
     app: tauri::AppHandle,
     snapshot: Snapshot,
     options: ExportOptions,
-    save_path: String,
+    dir: String,
+    base_stem: String,
     state: State<'_, crate::ExportState>,
-) -> Result<crate::model::ExportStats, String> {
-    crate::export::run_export(app, snapshot, options, PathBuf::from(save_path), &state)
+) -> Result<Vec<ExportFile>, String> {
+    crate::export::run_export(app, snapshot, options, PathBuf::from(dir), base_stem, &state)
 }
 
 #[tauri::command]

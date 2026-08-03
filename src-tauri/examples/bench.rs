@@ -89,29 +89,36 @@ fn main() {
         })
         .collect();
     let snapshot = Snapshot { layers };
-    let out = std::env::temp_dir().join("tm_bench_merged.png");
+    let out_dir = std::env::temp_dir().join("tm_bench_out");
+    let _ = std::fs::remove_dir_all(&out_dir);
+    std::fs::create_dir_all(&out_dir).unwrap();
     let options = ExportOptions {
         bit_depth: 8,
         compression: Compression::Fast,
+        sizes: vec![2048, 1024, 512],
     };
     let cancel = AtomicBool::new(false);
 
-    println!("== 全量合成 + 导出（8bit / Fast 压缩）...");
+    println!("== 全量合成 + 多分辨率导出（8bit / Fast 压缩，sizes=[2048,1024,512]）...");
     let t_export = Instant::now();
-    let stats =
-        export::run_export_inner(&snapshot, options, &out, &|_, _, _| {}, &cancel).expect("导出失败");
+    let files = export::run_export_inner(&snapshot, options, &out_dir, "bench", &|_, _, _| {}, &cancel)
+        .expect("导出失败");
     let export_ms = t_export.elapsed().as_millis();
 
     // c) 结果
     let out_mb = SIZE * SIZE * 4 / 1024 / 1024;
     println!("== 结果 ==");
-    println!("输出尺寸：{}×{}", stats.width, stats.height);
-    println!(
-        "文件体积：{} 字节（{:.2} MB）",
-        stats.bytes_written,
-        stats.bytes_written as f64 / 1024.0 / 1024.0
-    );
-    println!("导出耗时：{} ms（含 300 层解码 + 合成 + PNG 编码 + 写盘）", export_ms);
+    for f in &files {
+        println!(
+            "  {}：{}×{}（{:.2} MB，编码 {} ms）",
+            out_dir.join(format!("bench_{}.png", f.width.max(f.height))).display(),
+            f.width,
+            f.height,
+            f.bytes_written as f64 / 1024.0 / 1024.0,
+            f.duration_ms
+        );
+    }
+    println!("导出耗时：{} ms（含 300 层解码 + 一次全分辨率合成 + 3 档并行编码 + 写盘）", export_ms);
     println!(
         "内存理论值：输出缓冲 {} MB + 单张解码 {} MB = {} MB（逐层解码复用，不随层数累积）",
         out_mb,
@@ -120,6 +127,6 @@ fn main() {
     );
 
     // 清理输出文件（bench 可重复运行，临时 PNG 留在 %TEMP% 供查看，脚本外清理）
-    let _ = std::fs::remove_file(&out);
+    let _ = std::fs::remove_dir_all(&out_dir);
     println!("== 完成（临时 PNG 保留在 {:?}，可用 Remove-Item 清理）", dir);
 }
