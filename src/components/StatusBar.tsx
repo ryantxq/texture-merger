@@ -16,8 +16,13 @@ export default function StatusBar({ layerCount, outputSize, previewSize, status,
   return (
     <div className="statusbar">
       <span>
-        {importProgress != null && (
-          <span style={{ marginRight: 10, display: "inline-flex", alignItems: "center", gap: 6, color: "var(--accent)" }}>
+        图层 {layerCount}
+        {outputSize && <span> · 输出 {outputSize.width}×{outputSize.height} · 预估 {memMB}MB</span>}
+        {previewSize && <span> · 预览 {previewSize.width}×{previewSize.height}</span>}
+      </span>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        {importProgress != null ? (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--accent)" }}>
             导入中 {importProgress.done}/{importProgress.total}
             <span
               style={{
@@ -41,14 +46,11 @@ export default function StatusBar({ layerCount, outputSize, previewSize, status,
               />
             </span>
           </span>
+        ) : exportProgress != null ? (
+          <span style={{ marginRight: 10, color: "var(--accent)" }}>导出 {Math.round(exportProgress * 100)}%</span>
+        ) : (
+          status
         )}
-        图层 {layerCount}
-        {outputSize && <span> · 输出 {outputSize.width}×{outputSize.height} · 预估 {memMB}MB</span>}
-        {previewSize && <span> · 预览 {previewSize.width}×{previewSize.height}</span>}
-      </span>
-      <span>
-        {exportProgress != null && <span style={{ marginRight: 10, color: "var(--accent)" }}>导出 {Math.round(exportProgress * 100)}%</span>}
-        {status}
       </span>
     </div>
   );

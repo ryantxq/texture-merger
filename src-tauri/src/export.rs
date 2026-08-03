@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 use rayon::prelude::*;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use crate::composite;
 use crate::decode;
 use crate::model::{ExportFile, ExportOptions, LayerState, Snapshot};
@@ -18,8 +18,8 @@ pub fn run_export(
     options: ExportOptions,
     dir: PathBuf,
     base_stem: String,
-    state: &ExportState,
 ) -> Result<Vec<ExportFile>, String> {
+    let state = app.state::<ExportState>();
     let on_progress = |phase: &str, p: f32, info: &str| {
         let _ = app.emit("export-progress", serde_json::json!({
             "phase": phase, "progress": p, "info": info

@@ -121,7 +121,7 @@ export default function LayerList(props: Props) {
                   setOverIndex(null);
                 }}
                 onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
-                onClick={() => props.onSelect(layer.id)}
+                onClick={() => (props.selectedId === layer.id ? props.onSelect(null) : props.onSelect(layer.id))}
                 onDoubleClick={() => {
                   props.onSelect(layer.id);
                   props.onSolo(true);
@@ -159,10 +159,10 @@ export default function LayerList(props: Props) {
                   </span>
                 </span>
                 <span className="ops">
-                  <button className="btn icon" title="旋转90°" onClick={(e) => { e.stopPropagation(); props.onRotate(layer.id); }}>↻</button>
-                  <button className="btn icon" title="垂直翻转" onClick={(e) => { e.stopPropagation(); props.onFlipV(layer.id); }}>⇵</button>
-                  <button className="btn icon" title="替换" onClick={(e) => { e.stopPropagation(); handleReplace(layer.id); }}>⟳</button>
-                  <button className="btn icon" title="移除" onClick={(e) => { e.stopPropagation(); props.onRemove(layer.id); }}>×</button>
+                  <button className="op-btn" title="旋转90°" onClick={(e) => { e.stopPropagation(); props.onRotate(layer.id); }}>↻</button>
+                  <button className="op-btn" title="垂直翻转" onClick={(e) => { e.stopPropagation(); props.onFlipV(layer.id); }}>⇵</button>
+                  <button className="op-btn" title="替换" onClick={(e) => { e.stopPropagation(); handleReplace(layer.id); }}>⟳</button>
+                  <button className="op-btn" title="移除" onClick={(e) => { e.stopPropagation(); props.onRemove(layer.id); }}>×</button>
                 </span>
               </div>
             );
