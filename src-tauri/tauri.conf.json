@@ -1,0 +1,23 @@
+{
+  "productName": "贴图合并工具",
+  "version": "1.0.0",
+  "identifier": "com.moonstone.texturemerger",
+  "app": {
+    "windows": [
+      {
+        "title": "贴图合并工具",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 640
+      }
+    ],
+    "security": { "csp": null }
+  },
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  }
+}
