@@ -47,4 +47,11 @@ describe("layer reducer", () => {
     const s2 = reducer(s1, { type: "rotate", id: 1 });
     expect(s2.layers[0].rotate).toBe(1);
   });
+
+  it("sets and clears import progress", () => {
+    const s1 = reducer(initialState, { type: "setImportProgress", progress: { done: 2, total: 5 } });
+    expect(s1.importProgress).toEqual({ done: 2, total: 5 });
+    const s2 = reducer(s1, { type: "setImportProgress", progress: null });
+    expect(s2.importProgress).toBeNull();
+  });
 });

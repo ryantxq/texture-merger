@@ -5,10 +5,11 @@ export const initialState: AppState = {
   layers: [],
   selectedId: null,
   soloMode: false,
-  exportOptions: { bitDepth: 8, compression: "balanced" },
+  exportOptions: { bitDepth: 8, compression: "balanced", sizes: [] },
   status: "就绪",
   previewProgress: 0,
   exportProgress: null,
+  importProgress: null,
 };
 
 export type Action =
@@ -25,7 +26,8 @@ export type Action =
   | { type: "setSolo"; solo: boolean }
   | { type: "setExportOptions"; options: AppState["exportOptions"] }
   | { type: "setStatus"; status: string }
-  | { type: "setExportProgress"; progress: number | null };
+  | { type: "setExportProgress"; progress: number | null }
+  | { type: "setImportProgress"; progress: { done: number; total: number } | null };
 
 export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -97,6 +99,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, status: action.status };
     case "setExportProgress":
       return { ...state, exportProgress: action.progress };
+    case "setImportProgress":
+      return { ...state, importProgress: action.progress };
     default:
       return state;
   }

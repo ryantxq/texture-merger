@@ -15,7 +15,6 @@ type Props = {
   onReplace: (id: number, item: Extract<ImportItem, { status: "ok" }>) => void;
   onToggleVisible: (id: number) => void;
   onRotate: (id: number) => void;
-  onFlipH: (id: number) => void;
   onFlipV: (id: number) => void;
   onClear: () => void;
 };
@@ -108,7 +107,6 @@ export default function LayerList(props: Props) {
                 </span>
                 <span style={{ display: "flex", gap: 2, color: "var(--text-3)", fontSize: 12 }}>
                   <button className="btn icon" title="旋转90°" onClick={(e) => { e.stopPropagation(); props.onRotate(layer.id); }}>↻</button>
-                  <button className="btn icon" title="水平翻转" onClick={(e) => { e.stopPropagation(); props.onFlipH(layer.id); }}>⇋</button>
                   <button className="btn icon" title="垂直翻转" onClick={(e) => { e.stopPropagation(); props.onFlipV(layer.id); }}>⇵</button>
                   <button className="btn icon" title="替换" onClick={(e) => { e.stopPropagation(); handleReplace(layer.id); }}>⟳</button>
                   <button className="btn icon" title="移除" onClick={(e) => { e.stopPropagation(); props.onRemove(layer.id); }}>×</button>

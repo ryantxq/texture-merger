@@ -26,8 +26,25 @@ export type LayerState = {
   thumbnailUrl?: string;
 };
 
-export type ExportOptions = { bitDepth: 8 | 16; compression: "fast" | "balanced" | "best" };
+export type ExportOptions = {
+  bitDepth: 8 | 16;
+  compression: "fast" | "balanced" | "best";
+  /** 目标长边像素尺寸列表（含原尺寸；0 会被后端清洗掉） */
+  sizes: number[];
+};
 export type Snapshot = { layers: LayerState[] };
+
+/** 图层非透明像素边界（变换后源像素坐标，含边界，w/h 为像素数） */
+export type LayerBbox = { x: number; y: number; w: number; h: number };
+
+/** 单个分辨率导出结果（sizes 中每个目标尺寸对应一项） */
+export type ExportFile = {
+  size: number;
+  width: number;
+  height: number;
+  bytesWritten: number;
+  durationMs: number;
+};
 
 export type AppState = {
   layers: LayerState[];
@@ -37,4 +54,6 @@ export type AppState = {
   status: string;
   previewProgress: number;
   exportProgress: number | null;
+  /** 导入进度（按图片数），无导入任务时为 null */
+  importProgress: { done: number; total: number } | null;
 };

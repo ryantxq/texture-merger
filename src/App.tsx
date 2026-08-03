@@ -1,7 +1,7 @@
 // src/App.tsx
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { buildPreview, importFiles, importFolder, onExportProgress } from "./api";
+import { buildPreview, importFiles, importFolder, onExportProgress, onImportProgress } from "./api";
 import { initialState, reducer } from "./store";
 import type { Snapshot } from "./types";
 import Toolbar from "./components/Toolbar";
@@ -41,6 +41,13 @@ export default function App() {
     return () => un?.();
   }, []);
 
+  // 导入进度监听
+  useEffect(() => {
+    let un: (() => void) | undefined;
+    onImportProgress((p) => dispatch({ type: "setImportProgress", progress: p })).then((fn) => (un = fn));
+    return () => un?.();
+  }, []);
+
   // 防抖预览刷新：任何图层变化后 300ms 重建预览（Solo 模式忽略）
   const snapshot = useMemo<Snapshot>(
     () => ({ layers: state.layers.map((l) => ({ ...l })) }),
@@ -58,7 +65,7 @@ export default function App() {
         const layers = state.soloMode && state.selectedId != null
           ? snapshot.layers.filter((l) => l.id === state.selectedId)
           : snapshot.layers;
-        const img = await buildPreview({ layers }, 1024);
+        const img = await buildPreview({ layers });
         if (seq === previewSeq.current) {
           setPreview(img);
           dispatch({ type: "setStatus", status: "就绪" });
@@ -88,25 +95,37 @@ export default function App() {
   async function handleImport(paths: string[]) {
     if (paths.length === 0) return;
     dispatch({ type: "setStatus", status: "导入中…" });
-    const items = await importFiles(paths, idRef.current);
-    const okCount = items.filter((i) => i.status === "ok").length;
-    idRef.current += okCount;
-    dispatch({ type: "addLayers", items });
-    const bad = items.filter((i) => i.status === "error");
-    if (bad.length > 0) {
-      dispatch({ type: "setStatus", status: `导入完成：成功 ${okCount}，失败 ${bad.length}（${bad[0].path.split(/[\\/]/).pop()}）` });
-    } else {
-      dispatch({ type: "setStatus", status: `已导入 ${okCount} 张` });
+    try {
+      const items = await importFiles(paths, idRef.current);
+      const okCount = items.filter((i) => i.status === "ok").length;
+      idRef.current += okCount;
+      dispatch({ type: "addLayers", items });
+      const bad = items.filter((i) => i.status === "error");
+      if (bad.length > 0) {
+        dispatch({ type: "setStatus", status: `导入完成：成功 ${okCount}，失败 ${bad.length}（${bad[0].path.split(/[\\/]/).pop()}）` });
+      } else {
+        dispatch({ type: "setStatus", status: `已导入 ${okCount} 张` });
+      }
+    } catch (e) {
+      dispatch({ type: "setStatus", status: `导入失败: ${e}` });
+    } finally {
+      dispatch({ type: "setImportProgress", progress: null });
     }
   }
 
   async function handleImportFolder(path: string) {
     dispatch({ type: "setStatus", status: "扫描文件夹…" });
-    const items = await importFolder(path, idRef.current);
-    const okCount = items.filter((i) => i.status === "ok").length;
-    idRef.current += okCount;
-    dispatch({ type: "addLayers", items });
-    dispatch({ type: "setStatus", status: `已从文件夹导入 ${okCount} 张` });
+    try {
+      const items = await importFolder(path, idRef.current);
+      const okCount = items.filter((i) => i.status === "ok").length;
+      idRef.current += okCount;
+      dispatch({ type: "addLayers", items });
+      dispatch({ type: "setStatus", status: `已从文件夹导入 ${okCount} 张` });
+    } catch (e) {
+      dispatch({ type: "setStatus", status: `导入失败: ${e}` });
+    } finally {
+      dispatch({ type: "setImportProgress", progress: null });
+    }
   }
 
   return (
@@ -132,7 +151,6 @@ export default function App() {
           onReplace={(id, item) => dispatch({ type: "replaceLayer", id, item })}
           onToggleVisible={(id) => dispatch({ type: "toggleVisible", id })}
           onRotate={(id) => dispatch({ type: "rotate", id })}
-          onFlipH={(id) => dispatch({ type: "flipH", id })}
           onFlipV={(id) => dispatch({ type: "flipV", id })}
           onClear={() => dispatch({ type: "clearLayers" })}
         />
@@ -141,6 +159,7 @@ export default function App() {
             preview={preview}
             solo={state.soloMode}
             soloName={state.layers.find((l) => l.id === state.selectedId)?.name}
+            selectedLayer={state.layers.find((l) => l.id === state.selectedId) ?? null}
             onExitSolo={() => dispatch({ type: "setSolo", solo: false })}
           />
         </div>
@@ -151,6 +170,7 @@ export default function App() {
         previewSize={preview ? { width: preview.width, height: preview.height } : null}
         status={state.status}
         exportProgress={state.exportProgress}
+        importProgress={state.importProgress}
         bitDepth={state.exportOptions.bitDepth}
       />
       {showExport && <ExportDialog state={state} snapshot={snapshot} onClose={() => setShowExport(false)} />}

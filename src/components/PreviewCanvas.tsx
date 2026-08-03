@@ -1,20 +1,39 @@
 // src/components/PreviewCanvas.tsx
 import { useEffect, useRef, useState } from "react";
+import { getLayerBbox } from "../api";
+import type { LayerBbox, LayerState } from "../types";
 
 type Props = {
   preview: { dataUrl: string; width: number; height: number } | null;
   solo: boolean;
   soloName?: string;
+  selectedLayer: LayerState | null;
   onExitSolo: () => void;
 };
 
-export default function PreviewCanvas({ preview, solo, soloName, onExitSolo }: Props) {
+/** bbox 模块级缓存：键 = `${id}_${rotate}_${flipH}_${flipV}`（与后端 bbox 缓存键一致，避免重复 IPC/解码） */
+const bboxCache = new Map<string, LayerBbox | null>();
+
+function bboxKey(layer: LayerState): string {
+  return `${layer.id}_${layer.rotate}_${layer.flipH}_${layer.flipV}`;
+}
+
+let cachedAccent: string | null = null;
+function accentColor(): string {
+  if (cachedAccent) return cachedAccent;
+  cachedAccent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#3b7bff";
+  return cachedAccent;
+}
+
+export default function PreviewCanvas({ preview, solo, soloName, selectedLayer, onExitSolo }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const imgRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; ox: number; oy: number } | null>(null);
+  // 选中图层的高亮框（{ key, bbox }）；bbox 为变换后全分辨率源像素坐标，null 表示全透明层
+  const [highlight, setHighlight] = useState<{ key: string; bbox: LayerBbox | null } | null>(null);
 
   // 加载预览图
   useEffect(() => {
@@ -33,6 +52,33 @@ export default function PreviewCanvas({ preview, solo, soloName, onExitSolo }: P
     img.src = preview.dataUrl;
   }, [preview]);
 
+  // 选中图层定位：非 solo 且有选中层时异步获取 bbox（命中模块级缓存则直接复用）
+  useEffect(() => {
+    const layer = selectedLayer;
+    if (solo || !layer) {
+      setHighlight(null);
+      return;
+    }
+    const key = bboxKey(layer);
+    const cached = bboxCache.get(key);
+    if (cached !== undefined) {
+      setHighlight({ key, bbox: cached });
+      return;
+    }
+    let cancelled = false;
+    getLayerBbox(layer)
+      .then((bbox) => {
+        bboxCache.set(key, bbox);
+        if (!cancelled) setHighlight({ key, bbox });
+      })
+      .catch(() => {
+        if (!cancelled) setHighlight(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLayer?.id, selectedLayer?.rotate, selectedLayer?.flipH, selectedLayer?.flipV, solo]);
+
   function fit() {
     const wrap = wrapRef.current;
     if (!wrap || !imgRef.current) return;
@@ -46,7 +92,7 @@ export default function PreviewCanvas({ preview, solo, soloName, onExitSolo }: P
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     const img = imgRef.current;
-    if (!canvas || !wrap || !img) return;
+    if (!canvas || !wrap || !img || !preview) return;
     canvas.width = wrap.clientWidth;
     canvas.height = wrap.clientHeight;
     const ctx = canvas.getContext("2d");
@@ -54,11 +100,32 @@ export default function PreviewCanvas({ preview, solo, soloName, onExitSolo }: P
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(img, offset.x, offset.y, img.width * zoom, img.height * zoom);
+
+    // 图层定位高亮框：solo 模式不绘制；bbox 命中且属于当前选中层才画
+    if (!solo && selectedLayer && highlight && highlight.key === bboxKey(selectedLayer) && highlight.bbox) {
+      const { x, y, w, h } = highlight.bbox;
+      const rotateOdd = selectedLayer.rotate % 2 === 1;
+      // 变换后层尺寸（全分辨率）；预览按长边≤512 等比缩小，源像素 → 预览像素的比例
+      const tw = rotateOdd ? selectedLayer.height : selectedLayer.width;
+      const th = rotateOdd ? selectedLayer.width : selectedLayer.height;
+      const sx = preview.width / tw;
+      const sy = preview.height / th;
+      const rx = offset.x + x * sx * zoom;
+      const ry = offset.y + y * sy * zoom;
+      const rw = w * sx * zoom;
+      const rh = h * sy * zoom;
+      ctx.save();
+      ctx.strokeStyle = accentColor();
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(rx, ry, rw, rh);
+      ctx.restore();
+    }
   }
 
   useEffect(() => {
     draw();
-  }, [zoom, offset, preview]);
+  }, [zoom, offset, preview, highlight, solo, selectedLayer]);
 
   useEffect(() => {
     const onResize = () => { if (imgRef.current) fit(); };
