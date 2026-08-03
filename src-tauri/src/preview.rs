@@ -56,24 +56,8 @@ impl Default for PreviewCache {
     }
 }
 
-/// bbox 缓存：键同预览缓存，值为对应层的非透明像素边界（全透明为 None）。
-pub type BboxCache = Mutex<HashMap<(u32, u8, bool, bool), Option<LayerBbox>>>;
-
-/// 计算图层非透明像素边界（含边界），结果缓存；全透明返回 None。
-pub fn compute_bbox(layer: &LayerState, cache: &BboxCache) -> Result<Option<LayerBbox>, String> {
-    let key = (layer.id, layer.rotate, layer.flip_h, layer.flip_v);
-    if let Some(v) = cache.lock().unwrap().get(&key) {
-        return Ok(v.clone());
-    }
-    let (w, h, rgba) = decode::load_png_rgba8(Path::new(&layer.path))?;
-    let transformed = composite::transform_into(&rgba, w, h, layer.rotate, layer.flip_h, layer.flip_v);
-    let (tw, th) = if layer.rotate % 2 == 1 { (h, w) } else { (w, h) };
-    let bbox = scan_bbox(&transformed, tw, th);
-    cache.lock().unwrap().insert(key, bbox);
-    Ok(bbox)
-}
-
-/// 扫描 alpha 非零像素的最小/最大行列（含边界）。
+/// 计算图层非透明像素边界（供测试/工具使用；当前 UI 改用蒙版叠加，保留函数与测试）。
+#[allow(dead_code)]
 fn scan_bbox(buf: &[u8], w: u32, h: u32) -> Option<LayerBbox> {
     let mut min_x = w;
     let mut min_y = h;
@@ -108,6 +92,34 @@ fn scan_bbox(buf: &[u8], w: u32, h: u32) -> Option<LayerBbox> {
         })
     } else {
         None
+    }
+}
+
+/// 取单个图层的预览级 RGBA8 缓冲（变换后缩小到长边≤PREVIEW_SCALE）；缓存缺失时构建并入库。
+/// 供「选中图层颜色加深」蒙版叠加使用，同时预热预览缓存。
+pub fn layer_preview(layer: &LayerState, cache: &PreviewCache) -> Result<(u32, u32, Vec<u8>), String> {
+    let key = (layer.id, layer.rotate, layer.flip_h, layer.flip_v);
+    if let Some(arc) = cache.get(key) {
+        let (tw, th) = transformed_dims(layer);
+        let lscale = ((tw.max(th) + PREVIEW_SCALE - 1) / PREVIEW_SCALE).max(1);
+        return Ok((tw / lscale, th / lscale, arc.as_ref().clone()));
+    }
+    let (w, h, rgba) = decode::load_png_rgba8(Path::new(&layer.path))?;
+    let transformed = composite::transform_into(&rgba, w, h, layer.rotate, layer.flip_h, layer.flip_v);
+    let (tw, th) = transformed_dims(layer);
+    let lscale = ((tw.max(th) + PREVIEW_SCALE - 1) / PREVIEW_SCALE).max(1);
+    let lw = tw / lscale;
+    let lh = th / lscale;
+    let small = downsample(&transformed, tw, th, lw, lh);
+    let _ = cache.insert(key, small.clone());
+    Ok((lw, lh, small))
+}
+
+fn transformed_dims(layer: &LayerState) -> (u32, u32) {
+    if layer.rotate % 2 == 1 {
+        (layer.height, layer.width)
+    } else {
+        (layer.width, layer.height)
     }
 }
 

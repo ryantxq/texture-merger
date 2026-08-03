@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use tauri::{Emitter, State};
 use crate::decode;
 use crate::import;
-use crate::model::{ExportFile, ExportOptions, ImportItem, LayerBbox, LayerState, PreviewImage, Snapshot};
+use crate::model::{ExportFile, ExportOptions, ImportItem, LayerState, PreviewImage, Snapshot};
 
 #[tauri::command]
 pub fn import_files(app: tauri::AppHandle, paths: Vec<String>, next_id: u32) -> Result<Vec<ImportItem>, String> {
@@ -34,8 +34,23 @@ pub fn build_preview(snapshot: Snapshot, cache: State<'_, crate::preview::Previe
 }
 
 #[tauri::command]
-pub fn get_layer_bbox(layer: LayerState, cache: State<'_, crate::preview::BboxCache>) -> Result<Option<LayerBbox>, String> {
-    crate::preview::compute_bbox(&layer, cache.inner())
+pub fn get_layer_mask(layer: LayerState, cache: State<'_, crate::preview::PreviewCache>) -> Result<PreviewImage, String> {
+    let (w, h, rgba) = crate::preview::layer_preview(&layer, cache.inner())?;
+    // 编码 PNG data URL：前端以 multiply 叠加做「颜色加深」图层像素定位
+    let mut buf = Vec::new();
+    {
+        let mut enc = png::Encoder::new(&mut buf, w, h);
+        enc.set_color(png::ColorType::Rgba);
+        enc.set_depth(png::BitDepth::Eight);
+        enc.set_compression(png::Compression::Fast);
+        let mut writer = enc.write_header().map_err(|e| e.to_string())?;
+        writer.write_image_data(&rgba).map_err(|e| e.to_string())?;
+    }
+    Ok(PreviewImage {
+        width: w,
+        height: h,
+        data_url: decode::rgba8_to_data_url(&buf),
+    })
 }
 
 #[tauri::command]

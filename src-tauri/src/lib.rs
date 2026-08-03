@@ -21,12 +21,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(ExportState { cancel: AtomicBool::new(false) })
         .manage(crate::preview::PreviewCache::new())
-        .manage(crate::preview::BboxCache::default())
         .invoke_handler(tauri::generate_handler![
             commands::import_files,
             commands::import_folder,
             commands::build_preview,
-            commands::get_layer_bbox,
+            commands::get_layer_mask,
             commands::export_image,
             commands::cancel_export,
             commands::reveal_in_folder,
