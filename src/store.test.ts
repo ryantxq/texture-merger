@@ -54,4 +54,15 @@ describe("layer reducer", () => {
     const s2 = reducer(s1, { type: "setImportProgress", progress: null });
     expect(s2.importProgress).toBeNull();
   });
+
+  it("defaults preview background to checker", () => {
+    expect(initialState.previewBg.mode).toBe("checker");
+    expect(initialState.previewBg.checkerA).toBe("#e3e6ea");
+  });
+
+  it("sets preview background", () => {
+    const bg = { mode: "solid" as const, checkerA: "#000", checkerB: "#fff", solid: "#112233" };
+    const s1 = reducer(initialState, { type: "setPreviewBg", bg });
+    expect(s1.previewBg).toEqual(bg);
+  });
 });

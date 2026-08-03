@@ -34,8 +34,13 @@ export type ExportOptions = {
 };
 export type Snapshot = { layers: LayerState[] };
 
-/** 图层非透明像素边界（变换后源像素坐标，含边界，w/h 为像素数） */
-export type LayerBbox = { x: number; y: number; w: number; h: number };
+/** 预览/缩略图背景：棋盘格（checkerA/B 两色）或单色 */
+export type PreviewBg = {
+  mode: "checker" | "solid";
+  checkerA: string;
+  checkerB: string;
+  solid: string;
+};
 
 /** 单个分辨率导出结果（sizes 中每个目标尺寸对应一项） */
 export type ExportFile = {
@@ -56,4 +61,6 @@ export type AppState = {
   exportProgress: number | null;
   /** 导入进度（按图片数），无导入任务时为 null */
   importProgress: { done: number; total: number } | null;
+  /** 预览背景（棋盘格/单色） */
+  previewBg: PreviewBg;
 };

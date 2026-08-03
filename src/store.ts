@@ -10,6 +10,7 @@ export const initialState: AppState = {
   previewProgress: 0,
   exportProgress: null,
   importProgress: null,
+  previewBg: { mode: "checker", checkerA: "#e3e6ea", checkerB: "#ffffff", solid: "#ffffff" },
 };
 
 export type Action =
@@ -27,7 +28,8 @@ export type Action =
   | { type: "setExportOptions"; options: AppState["exportOptions"] }
   | { type: "setStatus"; status: string }
   | { type: "setExportProgress"; progress: number | null }
-  | { type: "setImportProgress"; progress: { done: number; total: number } | null };
+  | { type: "setImportProgress"; progress: { done: number; total: number } | null }
+  | { type: "setPreviewBg"; bg: AppState["previewBg"] };
 
 export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -101,6 +103,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, exportProgress: action.progress };
     case "setImportProgress":
       return { ...state, importProgress: action.progress };
+    case "setPreviewBg":
+      return { ...state, previewBg: action.bg };
     default:
       return state;
   }

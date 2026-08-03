@@ -1,7 +1,7 @@
 // src/api.ts
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { ExportFile, ExportOptions, ImportItem, LayerBbox, LayerState, Snapshot } from "./types";
+import type { ExportFile, ExportOptions, ImportItem, LayerState, Snapshot } from "./types";
 
 export async function importFiles(paths: string[], nextId: number): Promise<ImportItem[]> {
   return invoke("import_files", { paths, nextId });
@@ -24,8 +24,9 @@ export async function exportImage(
   return invoke("export_image", { snapshot, options, dir, baseStem });
 }
 
-export async function getLayerBbox(layer: LayerState): Promise<LayerBbox | null> {
-  return invoke("get_layer_bbox", { layer });
+/** 单层预览级 RGBA PNG data URL（与 preview 同尺寸），供前端 multiply 叠加做颜色加深定位 */
+export async function getLayerMask(layer: LayerState): Promise<{ width: number; height: number; dataUrl: string }> {
+  return invoke("get_layer_mask", { layer });
 }
 
 export async function cancelExport(): Promise<void> {

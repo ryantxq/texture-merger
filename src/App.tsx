@@ -3,7 +3,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { buildPreview, importFiles, importFolder, onExportProgress, onImportProgress } from "./api";
 import { initialState, reducer } from "./store";
-import type { Snapshot } from "./types";
+import type { PreviewBg, Snapshot } from "./types";
 import Toolbar from "./components/Toolbar";
 import LayerList from "./components/LayerList";
 import PreviewCanvas from "./components/PreviewCanvas";
@@ -12,6 +12,10 @@ import AboutDialog from "./components/AboutDialog";
 import StatusBar from "./components/StatusBar";
 
 const THEME_KEY = "theme";
+const PREVIEW_BG_KEY = "previewBg";
+const PANEL_WIDTH_KEY = "panelWidth";
+const MIN_PANEL = 220;
+const MAX_PANEL = 520;
 type Theme = "light" | "dark";
 
 function initialTheme(): Theme {
@@ -20,9 +24,35 @@ function initialTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+/** 读取持久化的预览背景，缺省字段回退默认值 */
+function initialPreviewBg(): PreviewBg {
+  const saved = localStorage.getItem(PREVIEW_BG_KEY);
+  if (saved) {
+    try {
+      const p = JSON.parse(saved) as Partial<PreviewBg>;
+      return {
+        mode: p.mode === "solid" ? "solid" : "checker",
+        checkerA: typeof p.checkerA === "string" ? p.checkerA : initialState.previewBg.checkerA,
+        checkerB: typeof p.checkerB === "string" ? p.checkerB : initialState.previewBg.checkerB,
+        solid: typeof p.solid === "string" ? p.solid : initialState.previewBg.solid,
+      };
+    } catch {
+      // 解析失败回退默认
+    }
+  }
+  return initialState.previewBg;
+}
+
+function initialPanelWidth(): number {
+  const saved = Number(localStorage.getItem(PANEL_WIDTH_KEY));
+  if (Number.isFinite(saved)) return Math.min(MAX_PANEL, Math.max(MIN_PANEL, saved));
+  return 280;
+}
+
 export default function App() {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, dispatch] = useReducer(reducer, initialState, (s) => ({ ...s, previewBg: initialPreviewBg() }));
   const [theme, setTheme] = useState<Theme>(initialTheme);
+  const [panelWidth, setPanelWidth] = useState(initialPanelWidth);
   const [preview, setPreview] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
@@ -33,6 +63,16 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
+
+  // 预览背景持久化
+  useEffect(() => {
+    localStorage.setItem(PREVIEW_BG_KEY, JSON.stringify(state.previewBg));
+  }, [state.previewBg]);
+
+  // 图层面板宽度持久化
+  useEffect(() => {
+    localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidth));
+  }, [panelWidth]);
 
   // 导出进度监听
   useEffect(() => {
@@ -95,6 +135,8 @@ export default function App() {
   async function handleImport(paths: string[]) {
     if (paths.length === 0) return;
     dispatch({ type: "setStatus", status: "导入中…" });
+    // 立即显示初始进度（后端事件到达后更新）
+    dispatch({ type: "setImportProgress", progress: { done: 0, total: paths.length } });
     try {
       const items = await importFiles(paths, idRef.current);
       const okCount = items.filter((i) => i.status === "ok").length;
@@ -115,6 +157,8 @@ export default function App() {
 
   async function handleImportFolder(path: string) {
     dispatch({ type: "setStatus", status: "扫描文件夹…" });
+    // 文件总数需扫描后才知道：先用 1 占位，后端扫描完成后事件会带真实 total 更新
+    dispatch({ type: "setImportProgress", progress: { done: 0, total: 1 } });
     try {
       const items = await importFolder(path, idRef.current);
       const okCount = items.filter((i) => i.status === "ok").length;
@@ -153,6 +197,9 @@ export default function App() {
           onRotate={(id) => dispatch({ type: "rotate", id })}
           onFlipV={(id) => dispatch({ type: "flipV", id })}
           onClear={() => dispatch({ type: "clearLayers" })}
+          panelWidth={panelWidth}
+          onPanelWidth={setPanelWidth}
+          previewBg={state.previewBg}
         />
         <div className="canvas-area">
           <PreviewCanvas
@@ -161,6 +208,8 @@ export default function App() {
             soloName={state.layers.find((l) => l.id === state.selectedId)?.name}
             selectedLayer={state.layers.find((l) => l.id === state.selectedId) ?? null}
             onExitSolo={() => dispatch({ type: "setSolo", solo: false })}
+            previewBg={state.previewBg}
+            onPreviewBg={(bg) => dispatch({ type: "setPreviewBg", bg })}
           />
         </div>
       </div>

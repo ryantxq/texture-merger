@@ -17,7 +17,30 @@ export default function StatusBar({ layerCount, outputSize, previewSize, status,
     <div className="statusbar">
       <span>
         {importProgress != null && (
-          <span style={{ marginRight: 10, color: "var(--accent)" }}>导入中 {importProgress.done}/{importProgress.total}</span>
+          <span style={{ marginRight: 10, display: "inline-flex", alignItems: "center", gap: 6, color: "var(--accent)" }}>
+            导入中 {importProgress.done}/{importProgress.total}
+            <span
+              style={{
+                width: 120,
+                height: 4,
+                background: "var(--border-2)",
+                borderRadius: 2,
+                overflow: "hidden",
+                display: "inline-block",
+              }}
+            >
+              <span
+                style={{
+                  display: "block",
+                  height: 4,
+                  width: `${importProgress.total > 0 ? Math.min(100, (importProgress.done / importProgress.total) * 100) : 0}%`,
+                  background: "var(--accent)",
+                  borderRadius: 2,
+                  transition: "width .15s",
+                }}
+              />
+            </span>
+          </span>
         )}
         图层 {layerCount}
         {outputSize && <span> · 输出 {outputSize.width}×{outputSize.height} · 预估 {memMB}MB</span>}

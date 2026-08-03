@@ -1,7 +1,7 @@
 // src/components/PreviewCanvas.tsx
 import { useEffect, useRef, useState } from "react";
-import { getLayerBbox } from "../api";
-import type { LayerBbox, LayerState } from "../types";
+import { getLayerMask } from "../api";
+import type { LayerState, PreviewBg } from "../types";
 
 type Props = {
   preview: { dataUrl: string; width: number; height: number } | null;
@@ -9,31 +9,27 @@ type Props = {
   soloName?: string;
   selectedLayer: LayerState | null;
   onExitSolo: () => void;
+  previewBg: PreviewBg;
+  onPreviewBg: (bg: PreviewBg) => void;
 };
 
-/** bbox 模块级缓存：键 = `${id}_${rotate}_${flipH}_${flipV}`（与后端 bbox 缓存键一致，避免重复 IPC/解码） */
-const bboxCache = new Map<string, LayerBbox | null>();
+/** 蒙版模块级缓存：键 = `${id}_${rotate}_${flipH}_${flipV}`，避免重复 IPC/解码 */
+const maskCache = new Map<string, HTMLImageElement>();
 
-function bboxKey(layer: LayerState): string {
+function maskKey(layer: LayerState): string {
   return `${layer.id}_${layer.rotate}_${layer.flipH}_${layer.flipV}`;
 }
 
-let cachedAccent: string | null = null;
-function accentColor(): string {
-  if (cachedAccent) return cachedAccent;
-  cachedAccent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#3b7bff";
-  return cachedAccent;
-}
-
-export default function PreviewCanvas({ preview, solo, soloName, selectedLayer, onExitSolo }: Props) {
+export default function PreviewCanvas({ preview, solo, soloName, selectedLayer, onExitSolo, previewBg, onPreviewBg }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const imgRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; ox: number; oy: number } | null>(null);
-  // 选中图层的高亮框（{ key, bbox }）；bbox 为变换后全分辨率源像素坐标，null 表示全透明层
-  const [highlight, setHighlight] = useState<{ key: string; bbox: LayerBbox | null } | null>(null);
+  // 选中图层蒙版图像（与 preview 同尺寸，multiply 叠加做颜色加深定位）；null 表示无蒙版
+  const [maskImg, setMaskImg] = useState<HTMLImageElement | null>(null);
+  const [showBgPicker, setShowBgPicker] = useState(false);
 
   // 加载预览图
   useEffect(() => {
@@ -52,27 +48,31 @@ export default function PreviewCanvas({ preview, solo, soloName, selectedLayer, 
     img.src = preview.dataUrl;
   }, [preview]);
 
-  // 选中图层定位：非 solo 且有选中层时异步获取 bbox（命中模块级缓存则直接复用）
+  // 选中图层蒙版：非 solo 且有选中层时异步获取（命中模块级缓存则直接复用）；否则清除蒙版状态
   useEffect(() => {
     const layer = selectedLayer;
     if (solo || !layer) {
-      setHighlight(null);
+      setMaskImg(null);
       return;
     }
-    const key = bboxKey(layer);
-    const cached = bboxCache.get(key);
-    if (cached !== undefined) {
-      setHighlight({ key, bbox: cached });
+    const key = maskKey(layer);
+    const cached = maskCache.get(key);
+    if (cached) {
+      setMaskImg(cached);
       return;
     }
     let cancelled = false;
-    getLayerBbox(layer)
-      .then((bbox) => {
-        bboxCache.set(key, bbox);
-        if (!cancelled) setHighlight({ key, bbox });
+    getLayerMask(layer)
+      .then((res) => {
+        const img = new Image();
+        img.onload = () => {
+          maskCache.set(key, img);
+          if (!cancelled) setMaskImg(img);
+        };
+        img.src = res.dataUrl;
       })
       .catch(() => {
-        if (!cancelled) setHighlight(null);
+        if (!cancelled) setMaskImg(null);
       });
     return () => {
       cancelled = true;
@@ -101,31 +101,18 @@ export default function PreviewCanvas({ preview, solo, soloName, selectedLayer, 
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(img, offset.x, offset.y, img.width * zoom, img.height * zoom);
 
-    // 图层定位高亮框：solo 模式不绘制；bbox 命中且属于当前选中层才画
-    if (!solo && selectedLayer && highlight && highlight.key === bboxKey(selectedLayer) && highlight.bbox) {
-      const { x, y, w, h } = highlight.bbox;
-      const rotateOdd = selectedLayer.rotate % 2 === 1;
-      // 变换后层尺寸（全分辨率）；预览按长边≤512 等比缩小，源像素 → 预览像素的比例
-      const tw = rotateOdd ? selectedLayer.height : selectedLayer.width;
-      const th = rotateOdd ? selectedLayer.width : selectedLayer.height;
-      const sx = preview.width / tw;
-      const sy = preview.height / th;
-      const rx = offset.x + x * sx * zoom;
-      const ry = offset.y + y * sy * zoom;
-      const rw = w * sx * zoom;
-      const rh = h * sy * zoom;
+    // 选中层蒙版叠加：solo 模式不绘制；蒙版与 preview 同尺寸，multiply 实现「颜色加深」
+    if (!solo && maskImg) {
       ctx.save();
-      ctx.strokeStyle = accentColor();
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([6, 4]);
-      ctx.strokeRect(rx, ry, rw, rh);
+      ctx.globalCompositeOperation = "multiply";
+      ctx.drawImage(maskImg, offset.x, offset.y, img.width * zoom, img.height * zoom);
       ctx.restore();
     }
   }
 
   useEffect(() => {
     draw();
-  }, [zoom, offset, preview, highlight, solo, selectedLayer]);
+  }, [zoom, offset, preview, maskImg, solo, selectedLayer]);
 
   useEffect(() => {
     const onResize = () => { if (imgRef.current) fit(); };
@@ -138,11 +125,23 @@ export default function PreviewCanvas({ preview, solo, soloName, selectedLayer, 
     setZoom((z) => Math.min(8, Math.max(0.02, z * factor)));
   }
 
+  function setBg(patch: Partial<PreviewBg>) {
+    onPreviewBg({ ...previewBg, ...patch });
+  }
+
   return (
     <div
       ref={wrapRef}
       className="canvas-wrap"
-      style={{ cursor: dragRef.current ? "grabbing" : "grab" }}
+      style={{
+        cursor: dragRef.current ? "grabbing" : "grab",
+        ...(previewBg.mode === "checker"
+          ? {
+              backgroundImage: `repeating-conic-gradient(${previewBg.checkerA} 0% 25%, ${previewBg.checkerB} 0% 50%)`,
+              backgroundSize: "16px 16px",
+            }
+          : { backgroundColor: previewBg.solid }),
+      }}
       onWheel={onWheel}
       onMouseDown={(e) => {
         dragRef.current = { startX: e.clientX, startY: e.clientY, ox: offset.x, oy: offset.y };
@@ -164,6 +163,66 @@ export default function PreviewCanvas({ preview, solo, soloName, selectedLayer, 
       <canvas ref={canvasRef} id="preview" />
       {solo && soloName && <div className="solo-badge">仅查看：{soloName} · 点击空白处返回全部</div>}
       <div className="zoom-bar">
+        <button
+          className="btn icon"
+          title="背景设置"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowBgPicker((s) => !s);
+          }}
+        >
+          背景
+        </button>
+        {showBgPicker && (
+          <div className="bg-picker" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-picker-title">预览背景</div>
+            <label className="bg-picker-row">
+              <input
+                type="radio"
+                checked={previewBg.mode === "checker"}
+                onChange={() => setBg({ mode: "checker" })}
+              />
+              棋盘格
+            </label>
+            <label className="bg-picker-row">
+              <input
+                type="radio"
+                checked={previewBg.mode === "solid"}
+                onChange={() => setBg({ mode: "solid" })}
+              />
+              单色
+            </label>
+            {previewBg.mode === "checker" ? (
+              <>
+                <label className="bg-picker-row">
+                  A
+                  <input
+                    type="color"
+                    value={previewBg.checkerA}
+                    onChange={(e) => setBg({ checkerA: e.target.value })}
+                  />
+                </label>
+                <label className="bg-picker-row">
+                  B
+                  <input
+                    type="color"
+                    value={previewBg.checkerB}
+                    onChange={(e) => setBg({ checkerB: e.target.value })}
+                  />
+                </label>
+              </>
+            ) : (
+              <label className="bg-picker-row">
+                颜色
+                <input
+                  type="color"
+                  value={previewBg.solid}
+                  onChange={(e) => setBg({ solid: e.target.value })}
+                />
+              </label>
+            )}
+          </div>
+        )}
         <button className="btn icon" onClick={() => setZoom((z) => Math.max(0.02, z / 1.25))}>−</button>
         <span>{Math.round(zoom * 100)}%</span>
         <button className="btn icon" onClick={() => setZoom((z) => Math.min(8, z * 1.25))}>＋</button>
