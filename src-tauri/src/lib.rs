@@ -1,3 +1,6 @@
+// MSVC 链接器常规输出（“正在创建库…”）经 rustc 转为警告，属环境噪音，忽略。
+#![allow(linker_messages)]
+
 pub mod commands;
 pub mod composite;
 pub mod decode;

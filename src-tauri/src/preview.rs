@@ -1,7 +1,7 @@
 use std::path::Path;
 use crate::composite;
 use crate::decode;
-use crate::model::{LayerState, PreviewImage, Snapshot};
+use crate::model::{PreviewImage, Snapshot};
 
 /// 用缩略图/低分辨率源合成预览图，输出 PNG data URL。
 /// 简化实现：直接用全分辨率源按目标尺寸等比缩小（max_dim 限制长边）。
@@ -94,6 +94,7 @@ fn downsample(src: &[u8], w: u32, h: u32, nw: u32, nh: u32) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::LayerState;
     use std::path::PathBuf;
 
     fn tmp_png(name: &str, px: &[u8]) -> PathBuf {

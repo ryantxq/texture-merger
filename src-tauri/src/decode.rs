@@ -6,7 +6,7 @@ use png::{BitDepth, ColorType, Decoder, Encoder, Transformations};
 /// 读取 PNG 元信息：返回 (宽, 高, 是否为16bit)。
 pub fn load_png_meta(path: &Path) -> Result<(u32, u32, bool), String> {
     let file = BufReader::new(File::open(path).map_err(|e| format!("打开失败: {e}"))?);
-    let mut dec = Decoder::new(file);
+    let dec = Decoder::new(file);
     let reader = dec.read_info().map_err(|e| format!("读取PNG信息失败: {e}"))?;
     let info = reader.info();
     Ok((info.width, info.height, info.bit_depth == BitDepth::Sixteen))
