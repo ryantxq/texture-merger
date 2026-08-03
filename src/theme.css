@@ -1,0 +1,72 @@
+/* src/theme.css —— 设计变量 + 亮/暗主题 */
+:root {
+  --bg: #f0f2f5;
+  --panel: #ffffff;
+  --panel-2: #fafbfc;
+  --border: #d8dce1;
+  --border-2: #e2e5e9;
+  --text: #333333;
+  --text-2: #666666;
+  --text-3: #999999;
+  --accent: #2f6fed;
+  --accent-weak: #e8f0fe;
+  --hover: #f2f4f7;
+  --checker-a: #e3e6ea;
+  --checker-b: #ffffff;
+  --scroll-thumb: #c9cdd4;
+}
+[data-theme="dark"] {
+  --bg: #171b24;
+  --panel: #1f2430;
+  --panel-2: #232936;
+  --border: #333b4c;
+  --border-2: #333b4c;
+  --text: #e3e7ee;
+  --text-2: #b6becb;
+  --text-3: #7d8698;
+  --accent: #3b7bff;
+  --accent-weak: #2f3a52;
+  --hover: #2a3140;
+  --checker-a: #262d3b;
+  --checker-b: #1f2430;
+  --scroll-thumb: #3d4659;
+}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  user-select: none;
+}
+button, select, input { font-family: inherit; font-size: 12px; color: var(--text); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 5px; }
+.app { display: flex; flex-direction: column; height: 100%; }
+.toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--panel-2); border-bottom: 1px solid var(--border); }
+.main { display: flex; flex: 1; min-height: 0; }
+.layer-panel { width: 280px; border-right: 1px solid var(--border); background: var(--panel); display: flex; flex-direction: column; }
+.canvas-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.statusbar { display: flex; justify-content: space-between; padding: 5px 12px; background: var(--panel-2); border-top: 1px solid var(--border); color: var(--text-2); font-size: 12px; }
+.btn {
+  border: 1px solid var(--border); background: var(--panel); border-radius: 5px;
+  padding: 4px 12px; color: var(--text); cursor: pointer; white-space: nowrap;
+}
+.btn:hover { background: var(--hover); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.icon { padding: 4px 8px; }
+.layer-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid transparent; border-radius: 5px; cursor: pointer; }
+.layer-item:hover { background: var(--hover); }
+.layer-item.selected { border-color: var(--accent); background: var(--accent-weak); }
+.layer-item img.thumb { width: 36px; height: 36px; object-fit: contain; border: 1px solid var(--border); border-radius: 3px; background: repeating-conic-gradient(var(--checker-a) 0% 25%, var(--checker-b) 0% 50%) 0 0 / 10px 10px; }
+.canvas-wrap { position: relative; flex: 1; min-height: 0; margin: 10px; border-radius: 8px; overflow: hidden; background: repeating-conic-gradient(var(--checker-a) 0% 25%, var(--checker-b) 0% 50%) 0 0 / 16px 16px; }
+canvas#preview { display: block; }
+.solo-badge { position: absolute; top: 8px; left: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 5px; padding: 3px 10px; font-size: 12px; color: var(--accent); }
+.zoom-bar { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 3px 12px; display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--text-2); }
+.modal-mask { position: fixed; inset: 0; background: rgba(20, 24, 32, 0.45); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { width: 380px; background: var(--panel); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.25); overflow: hidden; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border-2); font-size: 14px; }
+.modal-body { padding: 14px 16px; font-size: 13px; color: var(--text-2); line-height: 1.8; }
+.modal-foot { padding: 10px 16px; border-top: 1px solid var(--border-2); text-align: right; display: flex; gap: 8px; justify-content: flex-end; }
+.select { border: 1px solid var(--border); background: var(--panel); border-radius: 5px; padding: 3px 6px; }
