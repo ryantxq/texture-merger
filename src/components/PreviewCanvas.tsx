@@ -11,16 +11,30 @@ type Props = {
   onExitSolo: () => void;
   previewBg: PreviewBg;
   onPreviewBg: (bg: PreviewBg) => void;
+  highlightColor: string;
+  onHighlightColor: (c: string) => void;
 };
 
 /** 蒙版模块级缓存：键 = `${id}_${rotate}_${flipH}_${flipV}`，避免重复 IPC/解码 */
 const maskCache = new Map<string, HTMLImageElement>();
+/** 染色蒙版缓存：键 = `${id}_${rotate}_${flipH}_${flipV}_${highlightColor}`，颜色或蒙版变化时失效 */
+const tintCache = new Map<string, HTMLCanvasElement>();
 
 function maskKey(layer: LayerState): string {
   return `${layer.id}_${layer.rotate}_${layer.flipH}_${layer.flipV}`;
 }
 
-export default function PreviewCanvas({ preview, solo, soloName, selectedLayer, onExitSolo, previewBg, onPreviewBg }: Props) {
+export default function PreviewCanvas({
+  preview,
+  solo,
+  soloName,
+  selectedLayer,
+  onExitSolo,
+  previewBg,
+  onPreviewBg,
+  highlightColor,
+  onHighlightColor,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -101,18 +115,35 @@ export default function PreviewCanvas({ preview, solo, soloName, selectedLayer, 
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(img, offset.x, offset.y, img.width * zoom, img.height * zoom);
 
-    // 选中层蒙版叠加：solo 模式不绘制；蒙版与 preview 同尺寸，multiply 实现「颜色加深」
-    if (!solo && maskImg) {
+    // 选中层蒙版叠加：solo 模式不绘制；用高亮色染色蒙版半透明叠加（保留蒙版 alpha）
+    if (!solo && maskImg && selectedLayer) {
+      const key = maskKey(selectedLayer);
+      const tintKey = `${key}_${highlightColor}`;
+      let tinted = tintCache.get(tintKey);
+      if (!tinted) {
+        tinted = document.createElement("canvas");
+        tinted.width = maskImg.width;
+        tinted.height = maskImg.height;
+        const tctx = tinted.getContext("2d");
+        if (tctx) {
+          tctx.drawImage(maskImg, 0, 0);
+          tctx.globalCompositeOperation = "source-in";
+          tctx.fillStyle = highlightColor;
+          tctx.fillRect(0, 0, tinted.width, tinted.height);
+        }
+        tintCache.set(tintKey, tinted);
+      }
       ctx.save();
-      ctx.globalCompositeOperation = "multiply";
-      ctx.drawImage(maskImg, offset.x, offset.y, img.width * zoom, img.height * zoom);
+      ctx.globalAlpha = 0.6;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.drawImage(tinted, offset.x, offset.y, img.width * zoom, img.height * zoom);
       ctx.restore();
     }
   }
 
   useEffect(() => {
     draw();
-  }, [zoom, offset, preview, maskImg, solo, selectedLayer]);
+  }, [zoom, offset, preview, maskImg, solo, selectedLayer, highlightColor]);
 
   useEffect(() => {
     const onResize = () => { if (imgRef.current) fit(); };
@@ -161,21 +192,32 @@ export default function PreviewCanvas({ preview, solo, soloName, selectedLayer, 
       }}
     >
       <canvas ref={canvasRef} id="preview" />
-      {solo && soloName && <div className="solo-badge">仅查看：{soloName} · 点击空白处返回全部</div>}
+      {solo && soloName && (
+        <button
+          className="solo-badge"
+          title="退出仅查看"
+          onClick={(e) => {
+            e.stopPropagation();
+            onExitSolo();
+          }}
+        >
+          仅查看：{soloName} <span>✕</span>
+        </button>
+      )}
       <div className="zoom-bar">
         <button
           className="btn icon"
-          title="背景设置"
+          title="画布设置"
           onClick={(e) => {
             e.stopPropagation();
             setShowBgPicker((s) => !s);
           }}
         >
-          背景
+          画布设置
         </button>
         {showBgPicker && (
           <div className="bg-picker" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-picker-title">预览背景</div>
+            <div className="bg-picker-title">画布设置</div>
             <label className="bg-picker-row">
               <input
                 type="radio"
@@ -221,6 +263,14 @@ export default function PreviewCanvas({ preview, solo, soloName, selectedLayer, 
                 />
               </label>
             )}
+            <label className="bg-picker-row">
+              高亮颜色
+              <input
+                type="color"
+                value={highlightColor}
+                onChange={(e) => onHighlightColor(e.target.value)}
+              />
+            </label>
           </div>
         )}
         <button className="btn icon" onClick={() => setZoom((z) => Math.max(0.02, z / 1.25))}>−</button>

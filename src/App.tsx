@@ -14,6 +14,7 @@ import StatusBar from "./components/StatusBar";
 const THEME_KEY = "theme";
 const PREVIEW_BG_KEY = "previewBg";
 const PANEL_WIDTH_KEY = "panelWidth";
+const HIGHLIGHT_COLOR_KEY = "highlightColor";
 const MIN_PANEL = 220;
 const MAX_PANEL = 520;
 type Theme = "light" | "dark";
@@ -53,6 +54,9 @@ export default function App() {
   const [state, dispatch] = useReducer(reducer, initialState, (s) => ({ ...s, previewBg: initialPreviewBg() }));
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [panelWidth, setPanelWidth] = useState(initialPanelWidth);
+  const [highlightColor, setHighlightColor] = useState<string>(
+    () => localStorage.getItem(HIGHLIGHT_COLOR_KEY) ?? "#ff5252"
+  );
   const [preview, setPreview] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
@@ -73,6 +77,11 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidth));
   }, [panelWidth]);
+
+  // 高亮颜色持久化
+  useEffect(() => {
+    localStorage.setItem(HIGHLIGHT_COLOR_KEY, highlightColor);
+  }, [highlightColor]);
 
   // 导出进度监听
   useEffect(() => {
@@ -188,7 +197,10 @@ export default function App() {
         <LayerList
           layers={state.layers}
           selectedId={state.selectedId}
-          onSelect={(id) => dispatch({ type: "select", id })}
+          onSelect={(id) => {
+            dispatch({ type: "select", id });
+            if (id === null) dispatch({ type: "setSolo", solo: false });
+          }}
           onSolo={(solo) => dispatch({ type: "setSolo", solo })}
           onMove={(from, to) => dispatch({ type: "moveLayer", from, to })}
           onRemove={(id) => dispatch({ type: "removeLayer", id })}
@@ -210,6 +222,8 @@ export default function App() {
             onExitSolo={() => dispatch({ type: "setSolo", solo: false })}
             previewBg={state.previewBg}
             onPreviewBg={(bg) => dispatch({ type: "setPreviewBg", bg })}
+            highlightColor={highlightColor}
+            onHighlightColor={setHighlightColor}
           />
         </div>
       </div>

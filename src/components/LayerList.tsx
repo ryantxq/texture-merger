@@ -8,7 +8,7 @@ import { importFiles } from "../api";
 type Props = {
   layers: LayerState[];
   selectedId: number | null;
-  onSelect: (id: number) => void;
+  onSelect: (id: number | null) => void;
   onSolo: (solo: boolean) => void;
   onMove: (from: number, to: number) => void;
   onRemove: (id: number) => void;
@@ -158,7 +158,7 @@ export default function LayerList(props: Props) {
                     {layer.width}×{layer.height}
                   </span>
                 </span>
-                <span className="ops" style={{ display: "flex", gap: 2, color: "var(--text-3)", fontSize: 12 }}>
+                <span className="ops">
                   <button className="btn icon" title="旋转90°" onClick={(e) => { e.stopPropagation(); props.onRotate(layer.id); }}>↻</button>
                   <button className="btn icon" title="垂直翻转" onClick={(e) => { e.stopPropagation(); props.onFlipV(layer.id); }}>⇵</button>
                   <button className="btn icon" title="替换" onClick={(e) => { e.stopPropagation(); handleReplace(layer.id); }}>⟳</button>
