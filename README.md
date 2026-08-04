@@ -16,8 +16,8 @@
 
 请前往 [Releases](https://github.com/ryantxq/texture-merger/releases) 页面下载：
 
-- **安装包**：`贴图合并工具_1.0.0_x64-setup.exe`（NSIS 安装程序）
-- **绿色版**：`贴图合并工具_绿色版.zip`（解压即用，免安装）
+- **安装包**：`TextureMerger_1.0.0_x64-setup.exe`（NSIS 安装程序）
+- **绿色版**：`TextureMerger_Portable.zip`（解压即用，免安装）
 
 ## 系统要求
 
