@@ -19,5 +19,21 @@
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.ico"],
+    "category": "Utility",
+    "shortDescription": "贴图合并工具",
+    "longDescription": "将 3ds Max 导出的同尺寸带透明通道 PNG 贴图按图层顺序重叠合成为一张 PNG。",
+    "publisher": "月石MoonStone",
+    "copyright": "© 2026 月石MoonStone",
+    "windows": {
+      "nsis": {
+        "languages": ["SimpChinese", "English"],
+        "installerIcon": "icons/icon.ico"
+      }
+    }
   }
 }
