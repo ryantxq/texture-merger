@@ -1,7 +1,35 @@
-# Tauri + React + Typescript
+# 贴图合并工具 (Texture Merger)
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+一款 Windows 桌面工具，用于将多张**同尺寸、带透明通道**的 PNG 贴图按图层顺序**重叠合成**为一张带透明通道的 PNG 图片。
 
-## Recommended IDE Setup
+适用于将同一 UV 象限内拆分导出的多张漫反射贴图合并为一张完整贴图。
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## 功能特性
+
+- **多种导入方式**：拖拽文件 / 多选文件 / 文件夹批量导入，多线程并行加载并实时显示进度
+- **图层管理**：拖拽排序、显示/隐藏、顺时针旋转 90°、垂直翻转、替换、移除、一键清空（带确认）
+- **实时预览**：棋盘格/单色背景（颜色可自定义）、图层像素定位高亮（高亮色可配置）、画布缩放与平移
+- **多分辨率导出**：一次导出多个分辨率等级（默认 3 级），8/16bit 位深、压缩级别可选，多线程编码加速
+- **亮/暗主题**：跟随系统或手动切换，偏好自动保存
+
+## 下载
+
+请前往 [Releases](https://github.com/ryantxq/texture-merger/releases) 页面下载：
+
+- **安装包**：`贴图合并工具_1.0.0_x64-setup.exe`（NSIS 安装程序）
+- **绿色版**：`贴图合并工具_绿色版.zip`（解压即用，免安装）
+
+## 系统要求
+
+- Windows 10 / 11（64 位）
+- 依赖系统 WebView2 运行时（Windows 10 以上通常已内置）
+
+## 技术栈
+
+Tauri 2 + Rust + React 18 + TypeScript + Vite
+
+## 关于
+
+- 版本：v1.0.0
+- 作者：@月石MoonStone
+- 邮箱：ryantxq@sina.com
